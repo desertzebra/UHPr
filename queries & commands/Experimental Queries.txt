@@ -1,0 +1,53 @@
+select medicalfragmentidx.fragmentname, medicalfragmentidx.fragmentid, uhpridx.firstname, uhpridx.lastname, uhpridx.dob, uhpridx.gid from medicalfragmentidx,uhpridx where medicalfragmentidx.gid=uhpridx.gid AND uhpridx.firstname="Harry" AND uhpridx.lastname="Potter" AND uhpridx.dob="19880708";
+
+
+Experiment
+
+
+$>time hdfs dfs -put UHPv3_6_data/Iteration6/medicalfragmentidx_1548384113.csv /uhpv3/lstore/medicalfragmentidx/
+
+$>time hdfs dfs -put UHPv3_6_data/Iteration6/uhpridx_1548384113.csv /uhpv3/lstore/uhpridx/
+
+$>time hdfs dfs -put -f UHPv3_6_data/Iteration6/uhpr_1548384113.csv /uhpv3/uhpr/
+
+$>hive
+
+hive>drop table medicalfragmentidx;
+hive>drop table uhpridx;
+hive>drop table uhpr;
+
+create external table uhpr(fragmentid string, fragmenttype string, data string, version string) row format delimited fields terminated by '|' lines terminated by '\n' location '/uhpv3/uhpr';
+
+create external table uhpridx(firstname string, lastname string, dob string, gid string) row format delimited fields terminated by '|' lines terminated by '\n' location '/uhpv3/lstore/uhpridx';
+
+create external table medicalfragmentidx(gid string, fragmentid string, fragmentname string) row format delimited fields terminated by '|' lines terminated by '\n' location '/uhpv3/lstore/medicalfragmentidx';
+
+select count(*) from uhpridx;
+select count(*) from medicalfragmentidx;
+select count(*) from uhpr;
+
+select medicalfragmentidx.fragmentid, uhpridx.firstname, uhpridx.lastname, uhpridx.dob, uhpridx.gid from medicalfragmentidx,uhpridx where medicalfragmentidx.gid=uhpridx.gid AND uhpridx.firstname="Harry" AND uhpridx.lastname="Potter" AND uhpridx.dob="19880708";
+
+select * from uhpr where fragmentid in (select fragmentid from medicalfragmentidx where gid=(select gid from uhpridx where firstname="Harry" AND lastname="Potter" AND dob="19880708"));
+
+
+Iteration 6
+
+select distinct(medicalfragmentidx.fragmentid) from medicalfragmentidx,uhpridx where medicalfragmentidx.gid=uhpridx.gid AND uhpridx.firstname="Harry" AND uhpridx.lastname="Potter" AND uhpridx.dob="19880708";
+
+select fragmentid from medicalfragmentidx where gid=(select distinct(gid) from 
+uhpridx where firstname="Harry" AND lastname="Potter" AND dob="19880708")
+
+select distinct(fragmentid) from medicalfragmentidx where gid=(select gid from uhpridx where firstname="Harry" AND lastname="Potter" AND dob="19880708")
+
+select * from uhpr where fragmentid in (select fragmentid from medicalfragmentidx where gid=(select distinct(gid) from uhpridx where firstname="Harry" AND lastname="Potter" AND dob="19880708"));
+
+
+
+
+Other
+select gid from medicalfragmentidx group by gid having count(distinct fragmentid) > 30
+
+
+
+

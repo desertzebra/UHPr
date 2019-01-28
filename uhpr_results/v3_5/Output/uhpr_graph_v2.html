@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<!-- Required meta tags -->
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+	<!-- Bootstrap CSS -->
+	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+	<title>UHPr</title>
+</head>
+<body>
+
+	<div class="container-fluid">
+		<div class="row ">
+			<div class="col-12 col-md-3 bd-sidebar">
+				<div id='PatientProfile' class="panel panel-info" >
+					<div class="panel-heading">
+						<div class="panel-title border-bottom">
+							<h3>UHPr Metadata</h3>
+						</div>
+					</div>
+					<div class="panel-body">
+						<div class='row border-bottom'>
+							<div class="col-md-3 col-lg-2">
+								UHPrId
+							</div>
+							<div class="col-md-9 col-lg-10">
+								<p id='iUhpr'></p>
+							</div>
+						</div>
+						<div class='row border-bottom'>
+							<div class="col-md-3 col-lg-2">
+								Name
+							</div>
+							<div class="col-md-9 col-lg-10">
+								<p id='name' class='font-weight-bold'></p>
+							</div>
+						</div>
+						<div class='row border-bottom'>
+							<div class="col-md-3 col-lg-2">
+								Date of Birth
+							</div>
+							<div class="col-md-9 col-lg-10">
+								<p id='dob'></p>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<span class="border-right"></span>
+			<div class="col-12 col-md-8 py-md-3 bd-content" role="main">
+				<div id='MedicalFragments' class="container-fluid"> 
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Optional JavaScript -->
+	<!-- jQuery first, then Popper.js, then Bootstrap JS -->
+	<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+	<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
+
+	<!-- load the d3.js library -->	
+	<script src="http://d3js.org/d3.v3.min.js"></script>
+
+	<script>
+
+		function readTextFile(file, callback) {
+			var rawFile = new XMLHttpRequest();
+			rawFile.overrideMimeType("application/json");
+			rawFile.open("GET", file, true);
+			rawFile.onreadystatechange = function() {
+				if (rawFile.readyState === 4 && rawFile.status == "200") {
+					callback(rawFile.responseText);
+				}
+			}
+			rawFile.send(null);
+		}
+
+		function printObject(o) {
+			var out = '';
+			for (var p in o) {
+				out += p + ': ' + o[p] + '\n';
+			}
+			document.getElementById('MedicalFragments').innerHTML += out;
+		}
+
+//usage:
+readTextFile("uhpr_Harry Potter_19880708.json", function(text){
+	var data = JSON.parse(text);
+	document.getElementById('iUhpr').innerHTML = data.iUhpr;
+	document.getElementById('name').innerHTML = data.name;
+	document.getElementById('dob').innerHTML = data.dob;
+
+
+	var medicalFragmentItemList = data.medFragInstances;//[0].medicalFragmentItem;
+	
+	
+	//printObject(medicalFragmentItemList);
+
+	var MedicalFragmentsHtml = document.createElement("div");
+
+	for(var i in medicalFragmentItemList){
+
+		var medicalFragmentItem = medicalFragmentItemList[i].medicalFragmentItem;
+		//console.log(medicalFragmentItem);
+
+		for(var version in medicalFragmentItem){
+			var medFragObject = medicalFragmentItem[version];
+			var fragmentId = medFragObject['fragmentId'];
+
+			var MedicalFragmentInstance = document.createElement("div");
+			MedicalFragmentInstance.setAttribute("class", "panel panel-default");
+
+			var MedicalFragmentInstanceHeader = document.createElement("div");
+			MedicalFragmentInstanceHeader.setAttribute("class", "panel-heading");
+			MedicalFragmentInstanceHeader.setAttribute("role", "tab");
+			var MedicalFragmentInstanceHeaderTabTitle = document.createElement("h5");
+			MedicalFragmentInstanceHeaderTabTitle.setAttribute("class", 'panel-title');
+			var TabTitleToggleButton = document.createElement("a");
+			TabTitleToggleButton.setAttribute("role", "button");
+			TabTitleToggleButton.setAttribute("data-toggle", "collapse");
+			TabTitleToggleButton.setAttribute("href", "#collapse"+fragmentId);
+			TabTitleToggleButton.setAttribute("class",'trigger collapsed');
+			TabTitleToggleButton.setAttribute("aria-expanded",'true');
+			TabTitleToggleButton.setAttribute("aria-controls","collapse"+fragmentId);
+			TabTitleToggleButton.appendChild(document.createTextNode(medFragObject['fragmentType']));//+"("+medicalFragmentItem['version']+")"));
+			MedicalFragmentInstanceHeaderTabTitle.appendChild(TabTitleToggleButton);
+			MedicalFragmentInstanceHeader.appendChild(MedicalFragmentInstanceHeaderTabTitle);
+			MedicalFragmentInstance.appendChild(MedicalFragmentInstanceHeader);
+
+
+
+			var MedicalFragmentInstanceBody = document.createElement("div");
+			MedicalFragmentInstanceBody.setAttribute("class",'panel-collapse collapse');
+			MedicalFragmentInstanceBody.setAttribute("role", "tabpanel");
+			MedicalFragmentInstanceBody.setAttribute("id", "collapse"+fragmentId);
+
+
+			var MedicalFragmentInstanceBodyPanel = document.createElement("div");
+			MedicalFragmentInstanceBodyPanel.setAttribute("class", 'panel=body');
+
+			var MedicalFragmentInstanceBodyPanelRow = document.createElement("div");
+			MedicalFragmentInstanceBodyPanelRow.setAttribute("class", 'row');
+
+			var MedicalFragmentData = document.createElement("div");
+			MedicalFragmentData.setAttribute("class", 'col-md-12 col-lg-12 table-responsive-md');
+
+		//MedicalFragmentsHtml += "<div class='panel panel-default'>";
+
+		//MedicalFragmentsHtml += "<div class='panel-heading' role='tab'><h4 class='panel-title'><a role='button' data-toggle='collapse' href='#collapse"+fragmentId+"' aria-expanded='true' aria-controls='collapse"+fragmentId+"' class='trigger collapsed'>"+medicalFragmentItem['fragmentType']+"</a></h4></div>";
+
+		// MedicalFragmentsHtml += "<div id='collapse"+fragmentId+"' class='panel-collapse collapse' role='tabpanel' aria-labelledby='headingOne'><div class='panel-body'>";
+
+		// MedicalFragmentsHtml += "<div class='row'>";
+		// MedicalFragmentsHtml += "<div class='col-md-7 col-lg-8'>";
+
+
+		var dataElements = medFragObject['data'].split(',');
+				//create a table for this fragment
+				var dataElementTable = document.createElement("table");
+				dataElementTable.setAttribute("class", 'table table-sm table-bordered');
+				//var dataElementHead = document.createElement("thead");
+				//var dataElementBody = document.createElement("tbody");
+				var dataElementHeader = document.createElement("tr");
+				var dataElementRow = document.createElement("tr");
+				dataElements.forEach(function(dataItem){
+					var dataAttrributes = dataItem.split('=');
+					var cellHeader = document.createElement('th');
+					var cellValue = document.createElement('td');
+					if(dataAttrributes.length>1){
+						var cellHeaderText = document.createTextNode(dataAttrributes[0]);
+						cellHeader.appendChild(cellHeaderText);
+						var cellValueText = document.createTextNode((dataAttrributes[1]===""?"-":dataAttrributes[1]));	
+						cellValue.appendChild(cellValueText);
+						dataElementHeader.appendChild(cellHeader);
+						dataElementRow.appendChild(cellValue);
+					}
+
+				// MedicalFragmentsHtml += "<div>";
+				// // var dataAttrributes = dataItem.split('=');
+				// MedicalFragmentsHtml += dataItem+"<br/>";
+				// MedicalFragmentsHtml += "</div>";	
+			});
+				// dataElementHead.appendChild(dataElementHeader);
+				// dataElementBody.appendChild(dataElementRow);
+				// dataElementTable.appendChild(dataElementHead);
+				// dataElementTable.appendChild(dataElementBody);
+				dataElementTable.appendChild(dataElementHeader);
+				dataElementTable.appendChild(dataElementRow);
+
+				MedicalFragmentData.appendChild(dataElementTable);
+				MedicalFragmentInstanceBodyPanelRow.appendChild(MedicalFragmentData);
+				MedicalFragmentInstanceBody.appendChild(MedicalFragmentInstanceBodyPanelRow);
+				MedicalFragmentInstance.appendChild(MedicalFragmentInstanceBody);
+
+			//MedicalFragmentsHtml += "</div>";
+
+			
+		// MedicalFragmentsHtml += "<span class='border-left'></span>";
+
+		// MedicalFragmentsHtml += "<div class='col-md-3 col-lg-2'>";
+		// 	MedicalFragmentsHtml += "version:"+medicalFragmentItem['version'];			
+		// MedicalFragmentsHtml += "</div>"; // Fragment version
+
+		// MedicalFragmentsHtml += "</div>"; //Fragment data+version row
+		
+
+		// MedicalFragmentsHtml += "</div> </div></div>";
+
+		MedicalFragmentsHtml.appendChild(MedicalFragmentInstance);
+	}
+}
+console.log(MedicalFragmentsHtml);
+console.log(document.getElementById('MedicalFragments'));
+document.getElementById('MedicalFragments').appendChild(MedicalFragmentsHtml);
+
+    //console.log(data);
+});
+
+
+// *********** Convert flat data into a nice tree ***************
+// create a name: node map
+// var dataMap = data.reduce(function(map, node) {
+// 	map[node.name] = node;
+// 	return map;
+// }, {});
+
+// // create the tree array
+// var treeData = [];
+// data.forEach(function(node) {
+// 	// add to parent
+// 	var parent = dataMap[node.parent];
+// 	if (parent) {
+// 		// create child array if it doesn't exist
+// 		(parent.children || (parent.children = []))
+// 			// add node to child array
+// 			.push(node);
+// 	} else {
+// 		// parent is null or missing
+// 		treeData.push(node);
+// 	}
+// });
+
+// // ************** Generate the tree diagram	 *****************
+// var margin = {top: 20, right: 120, bottom: 20, left: 120},
+// 	width = 960 - margin.right - margin.left,
+// 	height = 500 - margin.top - margin.bottom;
+
+// var i = 0;
+
+// var tree = d3.layout.tree()
+// 	.size([height, width]);
+
+// var diagonal = d3.svg.diagonal()
+// 	.projection(function(d) { return [d.y, d.x]; });
+
+// var svg = d3.select("body").append("svg")
+// 	.attr("width", width + margin.right + margin.left)
+// 	.attr("height", height + margin.top + margin.bottom)
+//   .append("g")
+// 	.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+// root = treeData[0];
+
+// update(root);
+
+// function update(source) {
+
+//   // Compute the new tree layout.
+//   var nodes = tree.nodes(root).reverse(),
+// 	  links = tree.links(nodes);
+
+//   // Normalize for fixed-depth.
+//   nodes.forEach(function(d) { d.y = d.depth * 180; });
+
+//   // Declare the nodes…
+//   var node = svg.selectAll("g.node")
+// 	  .data(nodes, function(d) { return d.id || (d.id = ++i); });
+
+//   // Enter the nodes.
+//   var nodeEnter = node.enter().append("g")
+// 	  .attr("class", "node")
+// 	  .attr("transform", function(d) { 
+// 		  return "translate(" + d.y + "," + d.x + ")"; });
+
+//   nodeEnter.append("circle")
+// 	  .attr("r", 10)
+// 	  .style("fill", "#fff");
+
+//   nodeEnter.append("text")
+// 	  .attr("x", function(d) { 
+// 		  return d.children || d._children ? -13 : 13; })
+// 	  .attr("dy", ".35em")
+// 	  .attr("text-anchor", function(d) { 
+// 		  return d.children || d._children ? "end" : "start"; })
+// 	  .text(function(d) { return d.name; })
+// 	  .style("fill-opacity", 1);
+
+//   // Declare the links…
+//   var link = svg.selectAll("path.link")
+// 	  .data(links, function(d) { return d.target.id; });
+
+//   // Enter the links.
+//   link.enter().insert("path", "g")
+// 	  .attr("class", "link")
+// 	  .attr("d", diagonal);
+
+// }
+
+
+</script>
+
+</body>
+</html>
