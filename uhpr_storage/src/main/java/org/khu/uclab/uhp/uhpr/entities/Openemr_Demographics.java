@@ -1,5 +1,7 @@
 package org.khu.uclab.uhp.uhpr.entities;
 
+import java.util.HashMap;
+
 public class Openemr_Demographics extends MedicalFragment {
     // Who
     private String Name;
@@ -67,7 +69,7 @@ public class Openemr_Demographics extends MedicalFragment {
     	super(fragmentId, fragmentType, version);
     }
     
-    public void setRandomFields() {
+    public void setValues(HashMap<String,Object> values) {
     	// Who
     	Name = "";	// will be set by setPrivate();
     	ExternalID = "";

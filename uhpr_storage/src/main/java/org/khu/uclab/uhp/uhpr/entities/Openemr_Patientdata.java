@@ -1,5 +1,7 @@
 package org.khu.uclab.uhp.uhpr.entities;
 
+import java.util.HashMap;
+
 public class Openemr_Patientdata extends MedicalFragment {
 
     private long pid;
@@ -256,7 +258,7 @@ public class Openemr_Patientdata extends MedicalFragment {
     }
 
     @Override
-    public void setRandomFields() {
+    public void setValues(HashMap<String,Object> values) {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 

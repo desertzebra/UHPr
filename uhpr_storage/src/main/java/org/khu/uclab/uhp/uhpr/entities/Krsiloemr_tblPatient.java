@@ -1,5 +1,7 @@
 package org.khu.uclab.uhp.uhpr.entities;
 
+import java.util.HashMap;
+
 public class Krsiloemr_tblPatient extends MedicalFragment {
 
     private String PatientID;
@@ -27,7 +29,8 @@ public class Krsiloemr_tblPatient extends MedicalFragment {
     	super(fragmentId, fragmentType, version);
     }
     
-    public void setRandomFields() {
+    @Override
+    public void setValues(HashMap<String,Object> values) {
 		PatientID = "";
 		PatientMRNNo = rand.randInt(1, 10000);
 		PatientName = "";	// will be set by setPrivate();

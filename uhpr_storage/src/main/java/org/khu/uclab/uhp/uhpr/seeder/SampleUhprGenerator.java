@@ -15,7 +15,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class SampleUhprGenerator {
 	
-	String savepath = "F:\\Projects\\UHP\\v3_6_data";
+	String savepath = "F:\\Projects\\UHP\\v3_7_data";
 	
     Lstore lstore = new Lstore();
     ArrayList<MedicalFragment> medDataArchive = new ArrayList<>();
@@ -86,22 +86,36 @@ public class SampleUhprGenerator {
                 
                 
                 // "Krsiloemr", "openemr_Demographics", "openemr_MedicalProblems"
-                if(medFragIndex.getFragmentName().equalsIgnoreCase("Krsiloemr"))
+                if(medFragIndex.getFragmentName().equalsIgnoreCase("Krsiloemr")){
                 	fragment = new Krsiloemr_tblPatient(medFragIndex.getFragmentId(), medFragIndex.getFragmentName(), String.valueOf(unixTimestamp));
-                else if(medFragIndex.getFragmentName().equalsIgnoreCase("openemr_Demographics"))
+                        fragment.setValues(null);
+                        fragment.setPrivate(PatientIndex.getFirstName(), PatientIndex.getLastName(), PatientIndex.getDOB(), PatientIndex.getGender());	// match the the data in (name, dob, gender) if certain fragment contains
+                        fragment.setData();
+                }
+                else if(medFragIndex.getFragmentName().equalsIgnoreCase("openemr_Demographics")){
                 	fragment = new Openemr_Demographics(medFragIndex.getFragmentId(), medFragIndex.getFragmentName(), String.valueOf(unixTimestamp));
-                else if(medFragIndex.getFragmentName().equalsIgnoreCase("openemr_MedicalProblems"))
+                        fragment.setValues(null);
+                        fragment.setPrivate(PatientIndex.getFirstName(), PatientIndex.getLastName(), PatientIndex.getDOB(), PatientIndex.getGender());	// match the the data in (name, dob, gender) if certain fragment contains
+                        fragment.setData();
+                }
+                else if(medFragIndex.getFragmentName().equalsIgnoreCase("openemr_MedicalProblems")){
                 	fragment = new Openemr_MedicalProblems(medFragIndex.getFragmentId(), medFragIndex.getFragmentName(), String.valueOf(unixTimestamp));
-                else if(medFragIndex.getFragmentName().equalsIgnoreCase("openemr_Prescription"))
+                        fragment.setValues(null);
+                        fragment.setPrivate(PatientIndex.getFirstName(), PatientIndex.getLastName(), PatientIndex.getDOB(), PatientIndex.getGender());	// match the the data in (name, dob, gender) if certain fragment contains
+                        fragment.setData();
+                }
+                else if(medFragIndex.getFragmentName().equalsIgnoreCase("openemr_Prescription")){
                 	fragment = new Openemr_Prescription(medFragIndex.getFragmentId(), medFragIndex.getFragmentName(), String.valueOf(unixTimestamp));
+                        fragment.setValues(null);
+                        fragment.setPrivate(PatientIndex.getFirstName(), PatientIndex.getLastName(), PatientIndex.getDOB(), PatientIndex.getGender());	// match the the data in (name, dob, gender) if certain fragment contains
+                        fragment.setData();
+                }
                 else {
                     System.out.println("Incorrect Fragment name:"+medFragIndex.getFragmentName());
                     System.exit(1);
                 }
                 
-                fragment.setRandomFields();
-            	fragment.setPrivate(PatientIndex.getFirstName(), PatientIndex.getLastName(), PatientIndex.getDOB(), PatientIndex.getGender());	// match the the data in (name, dob, gender) if certain fragment contains
-            	fragment.setData();
+                
                 
             	medDataArchive.add(fragment);
             });
@@ -153,4 +167,61 @@ public class SampleUhprGenerator {
 			System.out.println(fragment.toString());
 		});
 	}
+        
+        
+        public void loadLstore(){
+    	System.out.print("loading data from csv files to lstore...");
+        
+        
+        //lstore.setUhprList(new LstoreSeeder().generateFields());
+        System.out.println("done");
+        
+        System.out.print("saving lstore...");
+        try {
+	        File file = new File(savepath);
+	        file.mkdirs();
+	        
+	        String realpath = savepath + "\\" + "uhpridx_"+unixTimestamp+".csv";
+	        BufferedWriter fw1 = new BufferedWriter(new FileWriter(realpath, true));
+	        lstore.getUhprList().forEach((PatientIndex) -> {
+	        	try {
+					fw1.write(PatientIndex.getFirstName());
+					fw1.write('|');
+					fw1.write(PatientIndex.getLastName());
+					fw1.write('|');
+					fw1.write(PatientIndex.getDOB());
+					fw1.write('|');
+					fw1.write(PatientIndex.getGid());
+					fw1.write('\n');
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+	        });
+	        fw1.close();
+	        
+	        realpath = savepath + "\\" + "medicalfragmentidx_"+unixTimestamp+".csv";
+	        BufferedWriter fw2 = new BufferedWriter(new FileWriter(realpath, true));
+	        lstore.getUhprList().forEach((PatientIndex) -> {
+	        	PatientIndex.getMedicalFragments().forEach((medFragIndex) -> {
+	        		try {
+	        			fw2.write(medFragIndex.getGid());
+	        			fw2.write('|');
+						fw2.write(medFragIndex.getFragmentId());
+						fw2.write('|');
+						fw2.write(medFragIndex.getFragmentName());
+						fw2.write('\n');
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+	        	});
+	        });
+	        fw2.close();
+	        		
+        } catch (Exception e) {
+        	e.printStackTrace();
+        }
+        System.out.println("done");
+    }
+        
+        
 }

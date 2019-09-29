@@ -1,6 +1,7 @@
 package org.khu.uclab.uhp.uhpr.entities;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
 import org.khu.uclab.uhp.uhpr.seeder.util.MedicalProblemGenerator;
 
@@ -23,7 +24,7 @@ public class Openemr_MedicalProblems extends MedicalFragment {
     
     public void setPrivate(String firstName, String lastName, String dob, int gender) {}
     
-    public void setRandomFields() {
+    public void setValues(HashMap<String,Object> values) {
 		ArrayList<String> dates = dateGen.getRandomPeriodicDateInYear(2018);
 		
 		Title = mpg.getRandomProblem();

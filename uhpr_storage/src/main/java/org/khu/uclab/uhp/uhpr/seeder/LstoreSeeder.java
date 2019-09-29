@@ -40,7 +40,7 @@ public class LstoreSeeder {
         }
         return uhprRecords;
     }
-
+    
     /**
      * Naive indexing, which identifies patients by their firstname, lastname,
      * and date of birth
@@ -70,7 +70,7 @@ public class LstoreSeeder {
         // Add only 1 openEMR Demographics
         MedicalFragmentIndex medFragment = new MedicalFragmentIndex();
         medFragment.setGid(patient.getGid());
-        medFragment.setFragmentName(new FragmentTypes().getDemographicFragmentName());
+        medFragment.setFragmentName(new FragmentTypes().getOpenEmrDemographicFragmentName());
         //Generate a uuid
         medFragment.setFragmentId(UUID.randomUUID().toString());
 

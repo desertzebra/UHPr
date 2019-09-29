@@ -1,5 +1,6 @@
 package org.khu.uclab.uhp.uhpr.entities;
 
+import java.util.HashMap;
 import org.khu.uclab.uhp.uhpr.seeder.util.PrescriptionGenerator;
 
 public class Openemr_Prescription extends MedicalFragment {
@@ -22,7 +23,7 @@ public class Openemr_Prescription extends MedicalFragment {
     	super(fragmentId, fragmentType, version);
     }
 	
-	public void setRandomFields() {
+	public void setValues(HashMap<String,Object> values) {
 		Patient_ID = "";
 		Patient_Name = "";	// will be set by setPrivate();
 		Currently_Active = stringGen.getRandomSign();

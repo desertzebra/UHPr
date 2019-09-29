@@ -1,5 +1,6 @@
 package org.khu.uclab.uhp.uhpr.entities;
 
+import java.util.HashMap;
 import org.khu.uclab.uhp.uhpr.seeder.util.*;
 
 public abstract class MedicalFragment {
@@ -21,7 +22,7 @@ public abstract class MedicalFragment {
 		this.version = version;
 	}
 	
-	public abstract void setRandomFields();
+	public abstract void setValues(HashMap<String,Object> values);
 	
 	public abstract void setPrivate(String firstName, String lastName, String dob, int gender);
 	
@@ -44,7 +45,11 @@ public abstract class MedicalFragment {
     }
 
     public String getData() {
-    	return data;
+        if(data!=null && !data.isEmpty()){
+        }else{
+            data = this.toString();
+        }
+        return data;
     }
     
     public void setData(String data) {

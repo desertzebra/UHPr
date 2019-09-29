@@ -9,11 +9,14 @@ import org.khu.uclab.uhp.uhpr.entities.MedicalFragment;
 
 public class Driver {
 	public static void main(String[] args) {
-		SampleUhprGenerator generator = new SampleUhprGenerator();
-		
-		generator.seedLstore();
-		generator.seedMedicalFragments();
+//		SampleUhprGenerator generator = new SampleUhprGenerator();
+//		
+//		generator.consume();
+//		generator.seedMedicalFragments();
 //                
+            EmrBotsDataConvertor dataHandler = new EmrBotsDataConvertor();
+            dataHandler.consume();
+
 //                ObjectMapper mapper = new ObjectMapper();
 //
 //		try {
