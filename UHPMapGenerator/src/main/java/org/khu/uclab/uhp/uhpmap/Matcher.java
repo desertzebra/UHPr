@@ -5,6 +5,9 @@
  */
 package org.khu.uclab.uhp.uhpmap;
 
+import org.khu.uclab.uhp.uhpmap.model.SchemaBridge;
+import org.khu.uclab.uhp.uhpmap.model.Schema;
+import org.khu.uclab.uhp.uhpmap.util.CsvHandler;
 import com.googlecode.concurrenttrees.common.CharSequences;
 import com.googlecode.concurrenttrees.radix.node.concrete.DefaultCharSequenceNodeFactory;
 import com.googlecode.concurrenttrees.solver.LCSubstringSolver;
