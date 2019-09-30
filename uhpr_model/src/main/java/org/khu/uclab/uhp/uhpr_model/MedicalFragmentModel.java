@@ -5,7 +5,6 @@
  */
 package org.khu.uclab.uhp.uhpr_model;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import org.khu.uclab.uhp.uhpr_model.entities.MedicalFragment;

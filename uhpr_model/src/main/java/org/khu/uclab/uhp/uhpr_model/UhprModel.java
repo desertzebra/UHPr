@@ -5,14 +5,9 @@
  */
 package org.khu.uclab.uhp.uhpr_model;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.khu.uclab.uhp.uhpr_model.entities.MedicalFragment;
 
 /**
