@@ -14,16 +14,18 @@ import org.json.JSONObject;
  * @author Fahad Ahmed Satti
  */
 public class Edge {
+
     private String lookupStr;
-    
+
     // Strings identifying the edge properties in the JSON string.
-    private static final String RELATION = "rel";
+    private static final String REL = "rel";
+    private static final String RELATION2 = "related";
     private static final String WEIGHT = "weight";
     private static final String SURFACE_TEXT = "surfaceText";
     private static final String DATASET = "dataset";
     private static final String START = "start";
     private static final String END = "end";
-    
+
     // This Edge's properties.
     private String relationString = "";
     private Relation relation = Relation.Other;
@@ -33,65 +35,34 @@ public class Edge {
     private String startNode = "";
     private String endNode = "";
 
-    @Override
-    public String toString() {
-        return "Edge{" + "lookupStr=" + lookupStr + ", relationString=" + relationString + ", relation=" + relation + ", weight=" + weight + ", surfaceText=" + surfaceText + ", dataset=" + dataset + ", startNode=" + startNode + ", endNode=" + endNode + '}';
-    }
-
-    @Override
-    public int hashCode() {
-        int hash = 7;
-        hash = 37 * hash + Objects.hashCode(this.lookupStr);
-        hash = 37 * hash + Objects.hashCode(this.relationString);
-        hash = 37 * hash + Objects.hashCode(this.relation);
-        hash = 37 * hash + (int) (Double.doubleToLongBits(this.weight) ^ (Double.doubleToLongBits(this.weight) >>> 32));
-        hash = 37 * hash + Objects.hashCode(this.surfaceText);
-        hash = 37 * hash + Objects.hashCode(this.dataset);
-        hash = 37 * hash + Objects.hashCode(this.startNode);
-        hash = 37 * hash + Objects.hashCode(this.endNode);
-        return hash;
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) {
-            return true;
-        }
-        if (obj == null) {
-            return false;
-        }
-        if (getClass() != obj.getClass()) {
-            return false;
-        }
-        final Edge other = (Edge) obj;
-        if (!Objects.equals(this.startNode, other.startNode)) {
-            return false;
-        }
-        if (!Objects.equals(this.endNode, other.endNode)) {
-            return false;
-        }
-        if (this.relation != other.relation) {
-            return false;
-        }
-        if (this.dataset != other.dataset) {
-            return false;
-        }
-        return true;
-    }
     
+   
     public Edge(String lookupString, JSONObject jsonObj) throws JSONException {
         lookupStr = lookupString.trim().toLowerCase();
-        
-            relation = setRelation(cleanRelation(jsonObj.getJSONObject(RELATION).getString("@id")));
+
+        if (jsonObj.has(REL)) {
+            relation = setRelation(cleanRelation(jsonObj.getJSONObject(REL).getString("@id")));
+        }
+        if (jsonObj.has(RELATION2)) {
+            relation = setRelation(cleanRelation(jsonObj.getJSONObject(REL).getString("@id")));
+        }
+        if (jsonObj.has(WEIGHT)) {
             weight = jsonObj.getDouble(WEIGHT);
+        }
+        if (jsonObj.has(START)) {
             startNode = jsonObj.getJSONObject(START).getString("@id");
+        }
+        if (jsonObj.has(END)) {
             endNode = jsonObj.getJSONObject(END).getString("@id");
-            dataset = Dataset.getDataset(jsonObj.getString(DATASET));       
-            if(jsonObj.isNull(SURFACE_TEXT)){
-                surfaceText = null; 
-            }else{
-                surfaceText = cleanSurfaceText(jsonObj.getString(SURFACE_TEXT));
-            }
+        }
+        if (jsonObj.has(DATASET)) {
+            dataset = Dataset.getDataset(jsonObj.getString(DATASET));
+        }
+        if (!jsonObj.has(SURFACE_TEXT) || jsonObj.isNull(SURFACE_TEXT)) {
+            surfaceText = null;
+        } else {
+            surfaceText = cleanSurfaceText(jsonObj.getString(SURFACE_TEXT));
+        }
     }
 
     private Relation setRelation(String relationStr) {
@@ -102,7 +73,7 @@ public class Edge {
         } catch (IllegalArgumentException e) {
             // The relation isn't in our Relation enum. No problem—we deal with this below.
         }
-        if(rel == null) {
+        if (rel == null) {
             rel = Relation.Other;
         }
         return rel;
@@ -181,6 +152,5 @@ public class Edge {
     public void setEndNode(String endNode) {
         this.endNode = endNode;
     }
-    
-        
+
 }

@@ -9,7 +9,7 @@ import java.util.logging.Logger;
 public class Driver {
     
 	public static void main(String[] args) {
-            final String baseDir = "F:\\Projects\\UHP\\UHP_Results\\v3_5\\";
+            final String baseDir = "F:\\Projects\\UHP\\UHP_model_results\\";
             try {
                 CsvHandler uhprReader = new CsvHandler();
                 uhprReader.setTargetMetaFile(new File(baseDir+"uhpr_results_HarryPotter_meta.csv"));

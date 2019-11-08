@@ -10,25 +10,27 @@ package org.khu.uclab.uhp.uhpmap;
  * @author Fahad Ahmed Satti
  */
 public enum SchemaRelation {
-    EQUAL(0, "="),
-    NOTEQUAL(1000, "!");
+    EQUAL(1.0, "="),
+    AMBIGIOUS(0.5," IS A "),
+    SUBSUMPTION(0.7," IS A "),
+    NOTEQUAL(0.0, "!");
     
     
-    private final Integer key;
-    private final String value;
+    private final Double confidence;
+    private final String label;
 
 
-    SchemaRelation(Integer key, String value) {
-        this.value = value;
-        this.key = key;
+    SchemaRelation(Double key, String value) {
+        this.label = value;
+        this.confidence = key;
     }
 
-    public Integer getKey() {
-        return key;
+    public Double getConfidence() {
+        return confidence;
     }
 
-    public String getValue() {
-        return value;
+    public String getLabel() {
+        return label;
     }
 
    
