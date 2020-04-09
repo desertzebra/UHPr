@@ -44,7 +44,6 @@ public class RelatednessNode {
         if(jsonObj.has(ConceptNetKeys.RELATED)) {
             jsonObj.getJSONArray(ConceptNetKeys.RELATED).forEach((relatedItem)->{
                 RelatednessNode rn = new RelatednessNode((JSONObject) relatedItem);
-                System.out.println("Adding Relatedness Node");
                 related.add(rn);
             });
         }
@@ -71,7 +70,7 @@ public class RelatednessNode {
     
     @Override
     public String toString() {
-        return "RelatednessNode{" + "context=" + context + ", id=\"" + id + "\", weight=" + weight + ", related=" + related + '}';
+        return "RelatednessNode{" + "context=" + context + ", id=" + id + ", weight=" + weight + ", related=" + related + '}';
     }
 
     public ArrayList<String> getContext() {

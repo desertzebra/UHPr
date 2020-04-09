@@ -14,21 +14,32 @@ import com.googlecode.concurrenttrees.solver.LCSubstringSolver;
 import org.khu.uclab.uhp.uhpmap.conceptnet.ConceptNetWrapper;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.function.Consumer;
+import java.util.List;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import org.khu.uclab.uhp.uhpmap.comparator.ConceptNetThreadedComparator;
+import org.khu.uclab.uhp.uhpmap.comparator.UhpMapUtils;
+import org.khu.uclab.uhp.uhpmap.model.AttributeMap;
+import org.khu.uclab.uhp.uhpmap.model.SchemaRelation;
 import org.khu.uclab.uhp.uhpmap.conceptnet.Edge;
 import org.khu.uclab.uhp.uhpmap.conceptnet.RelatednessNode;
 import org.khu.uclab.uhp.uhpmap.conceptnet.Relation;
+import org.khu.uclab.uhp.uhpmap.model.Attribute;
+import org.khu.uclab.uhp.uhpmap.model.Concept;
+import org.khu.uclab.uhp.uhpmap.model.Word;
+import org.khu.uclab.uhp.uhpmap.model.WordMap;
 import org.khu.uclab.uhp.uhpmap.snomedct.SnomedCtWrapper;
-import org.khu.uclab.uhp.uhpmap.snomedct.rf2.MatchResults;
+import org.khu.uclab.uhp.uhpmap.umls.UmlsWrapper;
 
 /**
  *
@@ -36,376 +47,126 @@ import org.khu.uclab.uhp.uhpmap.snomedct.rf2.MatchResults;
  */
 public class Matcher {
 
-    String readPath = "F:\\Projects\\UHP\\schema matching\\fahad\\";
-    String writePath = "F:\\Projects\\UHP\\schema matching\\fahad\\processed";
+    private final String readPath = "F:\\Projects\\UHP\\schema matching\\fahad\\";
+    private final String writePath = "F:\\Projects\\UHP\\schema matching\\fahad\\processed";
     ArrayList<ArrayList<String>> schemaProcessed = new ArrayList();
     BufferedWriter fw1 = null;
     ConceptNetWrapper conceptNetHandler = new ConceptNetWrapper();
     SnomedCtWrapper snomedHandler = new SnomedCtWrapper();
+    UmlsWrapper umlsHandler = new UmlsWrapper();
 
     // Use HashSet for fast lookup and avoiding duplicate objects
     HashSet<AttributeMap> UHP_MAP = new HashSet();
     HashMap<String, HashMap<Relation, Edge>> conceptNetMap = new HashMap();
+    HashMap<String, String> snomedCtMap = new HashMap();
+    HashMap<String, List<Concept>> umlsMap = new HashMap();
     HashMap<String, ArrayList<Edge>> conceptNetMap2 = new HashMap();
 
     //This word has nothing on concept net so skip it
     HashSet<String> conceptNetBlackList = new HashSet();
 
     //This word has nothing on SNOMED so skip it
-    HashSet<String> snomedNetBlackList = new HashSet();
+    HashSet<String> snomedCtBlackList = new HashSet();
 
-    boolean _isConceptNetEnabled = true;
-    boolean _isSnomedEnabled = false;
+    //This word has nothing on UMLS so skip it
+    HashSet<String> umlsBlackList = new HashSet();
 
+    private final boolean _isConceptNetEnabled = true;
+    private final boolean _isSnomedEnabled = false;
+    private final boolean _isUmlsEnabled = true;
+
+    //String ALLACRONYM_URL = "https://www.allacronyms.com";
+    //String SNOMED_CT_URL = "https://browser.ihtsdotools.org/snowstorm/snomed-ct/browser/MAIN/2020-03-09/descriptions?&limit=100&active=true&conceptActive=true&lang=english";
     public static void main(String args[]) {
         Matcher semMatch = new Matcher();
         semMatch.process();
+        System.out.println("Exiting");
     }
-    public boolean isSameSchema(String TableLeft, String TableRight){
-        String schemaLeftName = TableLeft.substring(0, TableLeft.indexOf("_"));
-        String schemaRightName = TableRight.substring(0, TableRight.indexOf("_"));
-        return schemaLeftName.equalsIgnoreCase(schemaRightName);
-    }
+
     public void process() {
         try {
+            Long startTime = System.currentTimeMillis();
+            System.out.print("Current Time in milliseconds = ");
+            System.out.println(startTime);
             try {
                 CsvHandler schemaReader = new CsvHandler();
 
                 schemaReader.setSourceFile(new File(readPath + "schemas.csv"));
 
-                ArrayList<Schema> schemaList = schemaReader.readData();
-                System.out.println("Original Schema Size:" + schemaList.size());
+                ArrayList<Attribute> attributeList = schemaReader.readData();
+                System.out.println("Original Schema Size:" + attributeList.size());
 
-                for (int i = 0; i < schemaList.size(); i++) {
-                    String attrLeft = schemaList.get(i).getAttributeName();
+                System.out.print("Current Time in milliseconds = ");
+                System.out.println(System.currentTimeMillis());
+                
+                
+                //equality check
+                leftAttributeLoop:
+                for (int leftAttributeNameIterator = 0; leftAttributeNameIterator < attributeList.size(); leftAttributeNameIterator++) {
+                    //System.out.println("UHP_MAP size at Start:" + UHP_MAP.size());
+                    Attribute attrLeft = attributeList.get(leftAttributeNameIterator);
+                    //System.out.println("Processing Attribute:" + attrLeft);
                     boolean checkFurther = true;
-                    //Simple lowercase string match
-                    for (int j = 0; j < schemaList.size(); j++) {
-                        if (i == j) {
+                    if (attrLeft.getWords().size() < 1) {
+                        attrLeft.setWords(attrLeft.getFullString().split(UhpMapUtils.REGEX_WITH_CASE));
+                    }
+                    //System.out.println("Just Split:"+attrLeft.getWords().size());
+                    rightAttributeLoop:
+                    for (int rightAttributeNameIterator = 0; rightAttributeNameIterator < attributeList.size(); rightAttributeNameIterator++) {
+                        Attribute attrRight = attributeList.get(rightAttributeNameIterator);
+
+                        //Check 1 - Case Insensitive Search
+                        checkFurther = compareCaseInsensitive(attrLeft, attrRight);
+                        if (!checkFurther) {
                             continue;
                         }
-                        if (isSameSchema(schemaList.get(i).getTableName(),schemaList.get(j).getTableName())) {
-                            continue;
+                        //System.out.println("UHP_MAP size after equality check:" + UHP_MAP.size());
+
+                        // Check 2 - Suffix Tree based longest sequence match
+                        compareLongestCommonSubsequenceInFullAttribute(attrLeft, attrRight);
+
+                        //Generate the word lists
+                        if (attrRight.getWords().size() < 1) {
+                            attrRight.setWords(attrRight.getFullString().split(UhpMapUtils.REGEX_WITH_CASE));
                         }
-                        
-                        attrLeft = attrLeft.replaceAll("(?=[`~!@#$%^&*()\\-_=+\\\\|\\[{\\]};:'\",<.>/?])", "");
-                        String attrRight = schemaList.get(j).getAttributeName().replaceAll("(?=[`~!@#$%^&*()\\-_=+\\\\|\\[{\\]};:'\",<.>/?])", "");
-
-                        if (attrLeft.equalsIgnoreCase(attrRight)) {
-                            System.out.println(attrLeft + " == " + attrRight);
-                            UHP_MAP.add(new AttributeMap(schemaList.get(i), schemaList.get(j), SchemaRelation.EQUAL, "equalsIgnoreCase",1.0));
-                            //UHP_MAP.add(new AttributeMap(schemaList.get(j), schemaList.get(i), SchemaRelation.EQUAL, "equalsIgnoreCase",1.0));
-//                            schemaList.remove(i);
-//                            schemaList.remove(j);
-                            checkFurther = false;
+                        //Replace concept from SNOMED CT
+                        if (_isSnomedEnabled) {
+                            updateConceptsFromSnomedCt(attrLeft);
+                            updateConceptsFromSnomedCt(attrRight);
+                        } //Replace concept from UMLS
+                        else if (_isUmlsEnabled) {
+                            updateConceptsFromUmls(attrLeft);
+                            updateConceptsFromUmls(attrRight);
                         }
-                    }
-                    if (!checkFurther) {
-                        continue;
-                    }
-                    System.out.println("UHP_MAP size after equality check:" + UHP_MAP.size());
-                    //Suffix Tree based longest sequence match
-                    for (int j = 0; j < schemaList.size(); j++) {
-                        String attrRight = schemaList.get(j).getAttributeName();
-                        //System.out.println(schemaList.get(i).getTableName()+" == "+schemaList.get(j).getTableName());
-                        boolean sameSchema = isSameSchema(schemaList.get(i).getTableName(),schemaList.get(j).getTableName());
-                        if (i != j && !sameSchema) {
-                            LCSubstringSolver solver = new LCSubstringSolver(new DefaultCharSequenceNodeFactory());
-                            solver.add(attrLeft);
-                            solver.add(attrRight);
-                            
-                            String longestCommonSubstring = CharSequences.toString(solver.getLongestCommonSubstring());
-                            if (longestCommonSubstring.length() > 1) {
-                                double threshold1 = (attrLeft.length() / 2) * 3;
-                                //double threshold2 = (attrRight.length() / 2) * 3;
-                                if (longestCommonSubstring.length() > threshold1){
-                                    double confidence = 1 - ((attrLeft.length() - longestCommonSubstring.length())/attrLeft.length());
-                                        AttributeMap sc = new AttributeMap(
-                                                schemaList.get(i), schemaList.get(j),
-                                                SchemaRelation.SUBSUMPTION, "SuffixTreeFullAttribute",confidence);
-                                        sc.setComments(longestCommonSubstring);
-                                        //System.out.println(sc);
-                                        UHP_MAP.add(sc);
-                                
-                                }
-//                                if(longestCommonSubstring.length() > threshold2) {
-//                                    double confidence = 1 - ((attrRight.length() - longestCommonSubstring.length())/attrRight.length());
-//                                        AttributeMap sc = new AttributeMap(
-//                                                schemaList.get(j), schemaList.get(i),
-//                                                SchemaRelation.SUBSUMPTION, "SuffixTreeFullAttribute",confidence);
-//                                        sc.setComments(longestCommonSubstring);
-//                                        //System.out.println(sc);
-//                                        UHP_MAP.add(sc);
-//                                
-//                                }
-                                //System.out.println(schemaList.get(i).getAttributeName()+" == "+schemaList.get(j).getAttributeName()+":"+longestCommonSubstring);
-                            }
+                        //System.out.println("Update from UMLS:" + attrRight.getWords().size());
+                        // Check 3 - Compare UMLS CUI
+                        if (_isUmlsEnabled) {
+                            compareUmlsCui(attrLeft, attrRight);
                         }
-                    }
+                        //System.out.println("[UMLS CUI comparison]" + attrRight.getWords().size());
 
-                    //Suffix Tree based longest sequence match for each word
-                    for (int j = 0; j < schemaList.size(); j++) {
-                        //System.out.println(schemaList.get(i)+" == "+schemaList.get(j));
-                        String attrRight = schemaList.get(j).getAttributeName();
-                        if (i != j && !isSameSchema(schemaList.get(i).getTableName(),schemaList.get(j).getTableName())) {
-                            //System.out.println(schemaList.get(j).getAttributeName());
-                            String regex = "(?<=.)(?=\\p{Lu})|(?<=.)(?=\\d)|(?<=.)(?=[`~!@#$%^&*()\\-_=+\\\\|\\[{\\]};:'\",<.>/?])";
-                            String[] words = attrRight.split(regex);
-                            boolean[] matchStatus = new boolean[words.length];
-                            String[] matchString = new String[words.length];
-                            for (int k = 0; k < words.length; k++) {
-                                if (words[k].length() > 1) {
-
-                                    LCSubstringSolver solver = new LCSubstringSolver(new DefaultCharSequenceNodeFactory());
-                                    solver.add(attrLeft);
-                                    solver.add(words[k]);
-                                    String longestCommonSubstring = CharSequences.toString(solver.getLongestCommonSubstring());
-                                    //double threshold2 = (attrRight.length() / 2) * 3;
-                                    double threshold2 = 1;
-                                    if (longestCommonSubstring.length() > threshold2) {
-                                        double threshold = (words[k].length() / 3) * 2;
-                                        //System.out.println(longestCommonSubstring.length()+"----" + threshold);
-                                        matchStatus[k] = longestCommonSubstring.length() > threshold;
-                                        matchString[k] = longestCommonSubstring;
-                                    }
-                                }
+                        // Check 4 - Suffix Tree based longest sequence match between
+                        // one full attribute and the other's words
+                        comparePartialLongestCommonSubsequence(attrLeft, attrRight);
+                        //System.out.println("Partial Longest Common Subsequence completed");
+                        //System.out.println(attrRight.getWords().size());
+                        //Check 5 - ConceptNET comparison
+                        if (_isConceptNetEnabled) {
+                            //System.out.println("------------------ Starting Concpet net mapping ------------------");
+                            ConceptNetThreadedComparator ctc = new ConceptNetThreadedComparator(attrLeft, attrRight);
+                            AttributeMap map = ctc.process();
+                            //System.out.println("------------------ Concpet net mapping done ------------------");
+                            if (map != null) {
+                                //System.out.println("Adding a new element after ConceptNet check:" + map);
+                                this.UHP_MAP.add(map);
                             }
-//                        System.out.println(schemaList.get(i).getAttributeName());
-//                        System.out.println(Arrays.toString(words));
-//                        System.out.println(Arrays.toString(matchStatus));
-//Check if all the words have passed 2/3 check
-                            boolean finalCheck = false;
-                            for (boolean status : matchStatus) {
-                                if (!status) {
-                                    finalCheck = false;
-                                    break;
-                                } else {
-                                    finalCheck = true;
-                                }
-                            }
-                            if (finalCheck) {
-                                // This is what we need to store
-//                                AttributeMap sb = new AttributeMap(schemaList.get(i),schemaList.get(j),SchemaRelation.NOTEQUAL,"SuffixTreeParts");
-//                                        sb.setComments(Arrays.toString(matchString));
-//
-                                // But we check this to see if it already exists, because if it does then we should change its status
-                                AttributeMap sb = new AttributeMap(schemaList.get(j), schemaList.get(i), SchemaRelation.SUBSUMPTION, "SuffixTreeParts",0.6);
-                                sb.setComments(Arrays.toString(matchString));
-
-                                //System.out.println("Adding a new element after partial word check");
-                                UHP_MAP.add(sb);
-//}
-
-                            }
-
+                            //compareRelatednessFromConceptNet(attrLeft, attrRight);
                         }
-                    }
-                    System.out.println("UHP_MAP size after Suffix Tree Parts check:" + UHP_MAP.size());
-                    if (_isConceptNetEnabled) {
-                        System.out.println("################ CONCEPT NET #####################");
-                        //ConceptNet match for each word
-                        for (int j = 0; j < schemaList.size(); j++) {
-                             String attrRight = schemaList.get(j).getAttributeName();
-                            if (i != j && !isSameSchema(schemaList.get(i).getTableName(),schemaList.get(j).getTableName())) {
-                                String regex = "(?<=.)(?=\\p{Lu})|(?<=.)(?=\\d)|(?<=.)(?=[`~!@#$%^&*()\\-_=+\\\\|\\[{\\]};:'\",<.>/?])";
-                                String[] wordsLeft = attrLeft.split(regex);
-                                String[] wordsRight = attrRight.split(regex);
 
-                                // Build the ConceptNetMap
-                                //Store status and string of each word in the left string with all corresponding words of the right string
-                                WordMap[][] wordsMap = new WordMap[wordsLeft.length][wordsRight.length];
-//                                String[][] matchString = new String[wordsLeft.length][wordsRight.length];
-//                                Double[][] matchConfidence = new Double[wordsLeft.length][wordsRight.length];
-//                                String[][] matchComments = new String[wordsLeft.length][wordsRight.length];
-                                boolean finalMatchTest = true;
-                                double totalWeight=0;
-                                int countRelation = 0;
-                                //ArrayList<Edge> relatedness;
-                                for (int wIte1 = 0; wIte1<wordsLeft.length; wIte1++){
-                                    String wordsLeft1 = wordsLeft[wIte1];
-                                    wordsLeft1 = wordsLeft1.replaceAll("(?=[`~!@#$%^&*()\\-_=+\\\\|\\[{\\]};:'\",<.>/?])", "");
-                                    if (wordsLeft1.length() < 2) {
-                                        continue;
-                                    }
+                    }//Iterating Schema List for Right hand terms//Iterating Schema List for Right hand terms
 
-                                    if (conceptNetBlackList.contains(wordsLeft1)) {
-                                        continue;
-                                    }
-                                    //System.out.println(Arrays.toString(wordsLeft));
-                                    //System.out.println(wordsLeft1);
-                                    for (int wIte2 = 0; wIte2<wordsRight.length; wIte2++){
-                                        String wordsRight1 = wordsRight[wIte2];
-                                        wordsRight1 = wordsRight1.replaceAll("(?=[`~!@#$%^&*()\\-_=+\\\\|\\[{\\]};:'\",<.>/?])", "");
-                                        if (wordsRight1.length() < 2) {
-                                            continue;
-                                        }
-                                        if (conceptNetBlackList.contains(wordsRight1)) {
-                                            continue;
-                                        }
-                                        
-                                       RelatednessNode relatedness = conceptNetHandler.queryRelatedness(wordsLeft1, wordsRight1);
-                                        //System.out.println(relatedness);
-                                        if(relatedness!=null && relatedness.getWeight()>0){
-                                            //ArrayList<RelatednessNode> relatednessArray = conceptNetHandler.queryRelatedTerms(wordsLeft1, wordsRight1);
-                                            
-//                                            if(relatednessArray.size()>0){
-//                                                for( int relatedNodeIte = 0; relatedNodeIte<relatednessArray.size();relatedNodeIte++){
-//                                                    RelatednessNode relatedNode = relatednessArray.get(relatedNodeIte);
-//                                                    if(relatedNode.getWeight()>0.9){
-//                                                        AttributeMap sb = new AttributeMap(schemaList.get(i),
-//                                                            schemaList.get(j), SchemaRelation.EQUAL, "ConceptNet",relatedNode.getWeight());
-//                                                        sb.setComments(relatedNode.toString());
-//                                                        UHP_MAP.add(sb);
-//                                                    }
-//                                                    else if(relatedNode.getWeight()>0){
-//                                                        AttributeMap sb = new AttributeMap(schemaList.get(i),
-//                                                            schemaList.get(j), SchemaRelation.AMBIGIOUS, "ConceptNet",relatedNode.getWeight());
-//                                                        sb.setComments(relatedNode.toString());
-//                                                        UHP_MAP.add(sb);
-//                                                    }
-//                                                }
-//                                            }else{
-                                                //Something very wrong happened, due to which event though we have a relatedness value
-                                                // there are no related terms. Perhaps, server was too busy? 
-                                                if(relatedness.getWeight()>0.9){
-                                                    
-                                                    wordsMap[wIte1][wIte2] = new WordMap(wordsLeft1,wordsRight1,SchemaRelation.EQUAL,"ConceptNet",relatedness.getWeight());
-                                                    wordsMap[wIte1][wIte2].setComments(relatedness.toString());
-//                                                    
-//                                                    wordsBridge = new AttributeMap(
-//                                                    matchStatus[wIte1][wIte2] = true;
-//                                                    matchString[wIte1][wIte2] = wordsLeft1+"-"+SchemaRelation.EQUAL.getLabel()+"-"+wordsRight1;
-//                                                    matchConfidence[wIte1][wIte2] = relatedness.getWeight();
-//                                                    matchComments[wIte1][wIte2] = relatedness.toString();
-                                                }else if(relatedness.getWeight()>0){
-                                                    wordsMap[wIte1][wIte2] = new WordMap(wordsLeft1,wordsRight1,SchemaRelation.AMBIGIOUS,"ConceptNet",relatedness.getWeight());
-                                                    wordsMap[wIte1][wIte2].setComments(relatedness.toString());
-                                                }
-                                                
-                                                finalMatchTest = finalMatchTest & true;
-                                                totalWeight += relatedness.getWeight();
-                                                countRelation++;
-//                                                    AttributeMap sb = new AttributeMap(schemaList.get(i),
-//                                                            schemaList.get(j), SchemaRelation.EQUAL, "ConceptNet",relatedness.getWeight());
-//                                                        sb.setComments(relatedness.toString());
-//                                                        UHP_MAP.add(sb);
-//                                                    }
-//                                                    else if(relatedness.getWeight()>0){
-//                                                        AttributeMap sb = new AttributeMap(schemaList.get(i),
-//                                                            schemaList.get(j), SchemaRelation.AMBIGIOUS, "ConceptNet",relatedness.getWeight());
-//                                                        sb.setComments(relatedness.toString());
-//                                                        UHP_MAP.add(sb);
-//                                                    }
-//                                                AttributeMap sb = new AttributeMap(schemaList.get(i),
-//                                                                schemaList.get(j), SchemaRelation.AMBIGIOUS, "ConceptNet",relatedness.getWeight());
-//                                                            sb.setComments(relatedness.toString());
-//                                                        UHP_MAP.add(sb);
-                                        }else{
-                                            //conceptNetHandler.
-                                                finalMatchTest = finalMatchTest & false;
-                                        }
-                                        
-
-                                    }
-                                    //System.out.println("breaking2");
-                                }
-                                //Save concept net result here.
-                                if(countRelation==0) continue;
-                                
-                                double averageWeight = totalWeight / countRelation;
-                                
-                                AttributeMap sb;
-                                
-                                if(averageWeight>0.9){
-                                    sb= new AttributeMap(schemaList.get(i), schemaList.get(j), SchemaRelation.EQUAL, "ConceptNet",averageWeight);
-                                }else{
-                                    sb= new AttributeMap(schemaList.get(i), schemaList.get(j), SchemaRelation.AMBIGIOUS, "ConceptNet",averageWeight);
-                                }
-                                sb.setComments(Arrays.deepToString(wordsMap));
-                                UHP_MAP.add(sb);
-                            }
-                        }//CONCEPT NET Iterating Schema List for Right hand terms
-                    }
-
-                    if (this._isSnomedEnabled) {
-                        System.out.println("################ SNOMED #####################");
-                        //Identify the SNOMED Concepts
-                        for (int j = 0; j < schemaList.size(); j++) {
-                            String attrRight = schemaList.get(j).getAttributeName();
-                            if (i != j && !isSameSchema(schemaList.get(i).getTableName(),schemaList.get(j).getTableName())) {
-
-                                MatchResults resultLeft = snomedHandler.query(attrLeft);
-                                MatchResults resultRight = snomedHandler.query(attrRight);
-
-                                System.out.println(resultLeft.equals(resultRight));
-//                            String regex = "(?<=.)(?=\\p{Lu})|(?<=.)(?=\\d)|(?<=.)(?=[`~!@#$%^&*()\\-_=+\\\\|\\[{\\]};:'\",<.>/?])";
-//                            String[] wordsLeft = attrLeft.split(regex);
-//                            String[] wordsRight = attrRight.split(regex);
-//
-//                            // Build the SNOMEDMap
-//                            //Store status and string of each word in the left string with all corresponding words of the right string
-//                            int[][] matchStatus = new int[wordsLeft.length][wordsRight.length];
-//                            String[][] matchString = new String[wordsLeft.length][wordsRight.length];
-//
-//                            ArrayList<Edge> relatedness = new ArrayList();
-//                            for (int leftIte = 0; leftIte < wordsLeft.length; leftIte++) {
-//                                String wordsLeft1 = wordsLeft[leftIte];
-//                                wordsLeft1 = wordsLeft1.replaceAll("(?=[`~!@#$%^&*()\\-_=+\\\\|\\[{\\]};:'\",<.>/?])", "");
-//                                if (wordsLeft1.length() < 2) {
-//                                    continue;
-//                                }
-//
-//                                if (snomedNetBlackList.contains(wordsLeft1)) {
-//                                    continue;
-//                                }
-//                                System.out.println(Arrays.toString(wordsLeft));
-//                                System.out.println(wordsLeft1);
-//                                for (String wordsRight1 : wordsRight) {
-//                                    if (wordsRight1.length() < 2) {
-//                                        continue;
-//                                    }
-//                                    if (snomedNetBlackList.contains(wordsRight1)) {
-//                                        continue;
-//                                    }
-//                                    String keyL = wordsLeft1 + "-" + wordsRight1;
-//                                    String keyR = wordsRight1 + "-" + wordsLeft1;
-//                                    if (conceptNetMap2.containsKey(keyL)) {
-//                                        relatedness = conceptNetMap2.get(keyL);
-//                                    } else {
-//                                        MatchResults resultLeft = snomedHandler.query(wordsLeft1);
-//                                        MatchResults resultRight = snomedHandler.query(wordsRight1);
-//                                        if (results == null || results.size() < 1) {
-//                                            HashMap<Relation, Edge> LeftResult = snomedHandler.query(wordsLeft1);
-//                                            if (LeftResult.size() > 0) {
-//                                                continue;  //The right word was problematic so just skip this one.
-//                                            } else {
-//                                                snomedNetBlackList.add(wordsLeft1);
-//                                                System.out.println("breaking");
-//                                                break;
-//                                            }       //No need to look up this word anymore we will not find any results
-//
-//                                        }
-//                                        snomedMap2.put(keyL, results);
-//                                        snomedMap2.put(keyR, results);
-//                                        relatedness = snomedMap2.get(keyL);
-//                                    }
-//                                    if (relatedness != null && relatedness.size() > 0) {
-//                                        relatedness.forEach(edge -> {
-//                                            System.out.println(edge);
-//                                        });
-//
-//                                    }
-//
-//                                }
-//                                //System.out.println("breaking2");
-//                            }
-
-                            }
-                        }//SNOMED Iterating Schema List for Right hand terms
-                    }
-
-                }//Iterating Schema List for Left hand terms
-
+                }//Iterating Schema List for Left hand terms//Iterating Schema List for Left hand terms
+                System.out.println("Finished Map generation process");
                 Iterator hashSetIterator = UHP_MAP.iterator();
                 while (hashSetIterator.hasNext()) {
                     System.out.println(hashSetIterator.next());
@@ -415,29 +176,389 @@ public class Matcher {
             } catch (IOException ex) {
                 Logger.getLogger(Matcher.class.getName()).log(Level.SEVERE, null, ex);
             }
-
+            Long processCompleteTime = System.currentTimeMillis();
+            System.out.print("Current Time in milliseconds = ");
+            System.out.println(processCompleteTime);
             File file = new File(writePath);
             file.mkdirs();
             String realpath = writePath + "\\" + "schema_processed" + System.currentTimeMillis() + ".json";
             ObjectMapper UhpMapJson = new ObjectMapper();
             ObjectWriter UhpMapWriter = UhpMapJson.writer(new DefaultPrettyPrinter());
-            UhpMapWriter.writeValue(new File(realpath),UHP_MAP);
+            UhpMapWriter.writeValue(new File(realpath), UHP_MAP);
+            Long endTime = System.currentTimeMillis();
             
+            System.out.println("Execute Time:");
+            System.out.print("Processing Time:");
+            System.out.println(processCompleteTime - startTime);
+            System.out.print("Total Time:");
+            System.out.println(endTime - startTime);
             
-            //Write UHP_MAP as csv
-//            fw1 = new BufferedWriter(new FileWriter(realpath, true));
-//            UHP_MAP.forEach((tuple) -> {
-//                try {
-//                    fw1.write(tuple.toString());
-//                    fw1.write('\n');
-//                } catch (IOException e) {
-//                    e.printStackTrace();
-//                }
-//            });
-//            fw1.close();
         } catch (IOException ex) {
             Logger.getLogger(Matcher.class.getName()).log(Level.SEVERE, null, ex);
         }
+        
+    }
+
+    //Remove special characters from the string
+    private String cleanWord(String word) {
+        return word.replaceAll(UhpMapUtils.REGEX_REPLACE_SPECIAL, "");
+    }
+
+    //Remove special characters from the attribute
+    private String cleanAttribute(Attribute attr) {
+        return cleanWord(attr.getFullString());
+    }
+
+    //compare schema names
+    public boolean isSameSchema(Attribute attrLeft, Attribute attrRight) {
+        String schemaLeftName = attrLeft.getTableName().substring(0, attrLeft.getTableName().indexOf("_"));
+        String schemaRightName = attrRight.getTableName().substring(0, attrRight.getTableName().indexOf("_"));
+        return schemaLeftName.equalsIgnoreCase(schemaRightName);
+    }
+
+    //Get concepts from SNOMED-CT
+    private void updateConceptsFromSnomedCt(Attribute attr) {
+        if (attr.getWords().size() < 1) {
+            System.out.println("No words in the attribute");
+            return;
+        } else {
+            for (int wordIte = 0; wordIte < attr.getWords().size(); wordIte++) {
+                try {
+                    String wordTitle = cleanWord(attr.getWords().get(wordIte).getTitle());
+                    if (!snomedCtMap.containsKey(wordTitle)
+                            && !snomedCtBlackList.contains(wordTitle)) {
+                        String conceptId = snomedHandler.query(wordTitle);
+                        if ((conceptId == null || "".equals(conceptId))) {
+                            // Unable to get this word skip it next time
+                            System.out.println("Error in Item length for :" + wordTitle);
+                            snomedCtBlackList.add(wordTitle);
+                        } else {
+                            //System.out.println("Found in SNOMED CT:" + wordTitle);
+                            snomedCtMap.put(wordTitle, conceptId);
+                            attr.getWords().get(wordIte).setSnomedCtString(conceptId);
+                            //System.out.println("Adding concept id:" + attr.getWords().get(wordIte));
+                        }
+                    } else {
+                        attr.getWords().get(wordIte).setSnomedCtString(snomedCtMap.get(wordTitle));
+                    }
+                } catch (IOException ex) {
+                    System.out.println(ex.getMessage());
+                    snomedCtBlackList.add(attr.getWords().get(wordIte).getTitle());
+                }
+            }
+        }
+    }
+
+    //Get concepts from Umls
+    private void updateConceptsFromUmls(Attribute attr) {
+        if (attr.getWords().size() < 1) {
+            System.out.println("No words in the attribute");
+        } else {
+            for (int wordIte = 0; wordIte < attr.getWords().size(); wordIte++) {
+                try {
+                    String wordTitle = cleanWord(attr.getWords().get(wordIte).getTitle());
+                    if (!umlsMap.containsKey(wordTitle)
+                            && !umlsBlackList.contains(wordTitle)) {
+                        List<Concept> concept = umlsHandler.query(wordTitle);
+                        if ((concept == null || concept.size() < 1)) {
+                            // Unable to get this word skip it next time
+                            System.out.println("Error in Item length for:" + wordTitle);
+                            umlsBlackList.add(wordTitle);
+                        } else {
+                            //System.out.println("Found in UMLS:" + wordTitle);
+                            umlsMap.put(wordTitle, concept);
+                            attr.getWords().get(wordIte).setUmlsConcept(concept);
+                            //System.out.println("Adding CUI:" + attr.getWords().get(wordIte));
+                        }
+                    } else {
+                        attr.getWords().get(wordIte).setUmlsConcept(umlsMap.get(wordTitle));
+                    }
+                } catch (IOException ex) {
+                    System.out.println(ex.getMessage());
+                    umlsBlackList.add(attr.getWords().get(wordIte).getTitle());
+                }
+            }
+        }
+    }
+
+    //CHECK 1: Ignore case while comparing
+    private boolean compareCaseInsensitive(Attribute attrLeft, Attribute attrRight) {
+        //Ignore attributes in the same table
+        if (isSameSchema(attrLeft, attrRight)) {
+            return true;
+        }
+
+        String cleanAttrLeftString = cleanAttribute(attrLeft);
+        String cleanAttrRightString = cleanAttribute(attrRight);
+
+        if (cleanAttrLeftString.equalsIgnoreCase(cleanAttrRightString)) {
+            //System.out.println(attrLeft + " == " + attrRight);
+            UHP_MAP.add(new AttributeMap(attrLeft, attrRight, SchemaRelation.EQUAL, "equalsIgnoreCase", 1.0));
+            return false;
+        }
+        return true;
+    }
+
+    //Case 2 - Longest Common Subsequence In Full Attribute Name
+    private void compareLongestCommonSubsequenceInFullAttribute(Attribute attrLeft, Attribute attrRight) {
+        if (attrLeft == attrRight) {
+            return;
+        }
+        //Ignore attributes in the same table
+        if (isSameSchema(attrLeft, attrRight)) {
+            return;
+        }
+
+        String cleanAttrLeftString = cleanAttribute(attrLeft);
+        String cleanAttrRightString = cleanAttribute(attrRight);
+
+        LCSubstringSolver solver = new LCSubstringSolver(new DefaultCharSequenceNodeFactory());
+        solver.add(cleanAttrLeftString);
+        solver.add(cleanAttrRightString);
+        String longestCommonSubstring = CharSequences.toString(solver.getLongestCommonSubstring());
+
+        // Some similarity in the character subset was found, so lets check the threshold and add as a map
+        if (longestCommonSubstring.length() > 1) {
+            double threshold1 = (cleanAttrLeftString.length() / 2) * 3;
+            //double threshold2 = (cleanAttrRightString.length() / 2) * 3;
+            if (longestCommonSubstring.length() > threshold1) {
+                double confidence = 1 - ((cleanAttrLeftString.length() - longestCommonSubstring.length()) / cleanAttrLeftString.length());
+                AttributeMap sc = new AttributeMap(attrLeft, attrRight,
+                        SchemaRelation.SUBSUMPTION, "SuffixTreeFullAttribute",
+                        confidence);
+                sc.setComments(longestCommonSubstring);
+                UHP_MAP.add(sc);
+            }
+//            if (longestCommonSubstring.length() > threshold2) {
+//                double confidence = 1 - ((cleanAttrRightString.length() - longestCommonSubstring.length()) / cleanAttrRightString.length());
+//                AttributeMap sc = new AttributeMap(attrLeft, attrRight,
+//                        SchemaRelation.SUBSUMPTION, "SuffixTreeFullAttribute",
+//                        confidence);
+//                sc.setComments(longestCommonSubstring);
+//                UHP_MAP.add(sc);
+//
+//            }
+        }
+    }
+
+    //Case 3 - Partial Longest Common Subsequence using words in Right attribute and full Left attribute
+    private void comparePartialLongestCommonSubsequence(Attribute attrLeft, Attribute attrRight) {
+        if (attrLeft == attrRight) {
+            return;
+        }
+        //Ignore attributes in the same table
+        if (isSameSchema(attrLeft, attrRight)) {
+            return;
+        }
+
+        String cleanAttrLeftString = cleanAttribute(attrLeft).toLowerCase();
+
+        List<Word> words = attrRight.getWords();
+        boolean[] matchStatus = new boolean[words.size()];
+        String[] matchString = new String[words.size()];
+        for (int k = 0; k < words.size(); k++) {
+            LCSubstringSolver solver = new LCSubstringSolver(new DefaultCharSequenceNodeFactory());
+            solver.add(cleanAttrLeftString);
+            solver.add(words.get(k).getTitle().toLowerCase());
+            String longestCommonSubstring = CharSequences.toString(solver.getLongestCommonSubstring());
+            if (longestCommonSubstring.length() > 1) {
+                double threshold = (words.get(k).getTitle().length() / 3) * 2;
+                matchStatus[k] = longestCommonSubstring.length() > threshold;
+                matchString[k] = longestCommonSubstring;
+            }
+        }
+
+        //Check if all the words have passed 2/3 check
+        boolean finalCheck = false;
+        for (boolean status : matchStatus) {
+            if (!status) {
+                finalCheck = false;
+                break;
+            } else {
+                finalCheck = true;
+            }
+        }
+        if (finalCheck) {
+            AttributeMap sb = new AttributeMap(attrLeft, attrRight, SchemaRelation.SUBSUMPTION, "SuffixTreeParts", 0.6);
+            sb.setComments(Arrays.toString(matchString));
+
+            //System.out.println("Adding a new element after partial word check");
+            UHP_MAP.add(sb);
+        }
+    }
+
+//    private void compareRelatednessFromConceptNet(Attribute attrLeft, Attribute attrRight) {
+//        if (attrLeft == attrRight) {
+//            return;
+//        }
+//        //Ignore attributes in the same table
+//        if (isSameSchema(attrLeft, attrRight)) {
+//            return;
+//        }
+//
+//        List<Word> wordsLeft = attrLeft.getWords();
+//        List<Word> wordsRight = attrRight.getWords();
+//
+//        // Build the ConceptNetMap
+//        //Store status and string of each word in the left string with all corresponding words of the right string
+//        ArrayList<WordMap> wordsMap = new ArrayList();
+//        boolean finalMatchTest = true;
+//        double totalWeight = 0;
+//        int countRelation = 0;
+//
+//        //ArrayList<Edge> relatedness;
+//        for (Word wordObjLeft : wordsLeft) {
+//            String wordStrLeft = wordObjLeft.getTitle().replaceAll(UhpMapUtils.REGEX_REPLACE_SPECIAL, "");
+//            if (wordStrLeft.length() < 2) {
+//                continue;
+//            }
+////            if (conceptNetBlackList.contains(wordStrLeft)) {
+////                continue;
+////            }
+//            for (Word wordObjRight : wordsRight) {
+//                String wordStrRight = wordObjRight.getTitle().replaceAll(UhpMapUtils.REGEX_REPLACE_SPECIAL, "");
+//                if (wordStrRight.length() < 2) {
+//                    continue;
+//                }
+////                if (conceptNetBlackList.contains(wordStrRight)) {
+////                    continue;
+////                }
+//
+//                RelatednessNode relatedness = conceptNetHandler.queryRelatedness(wordStrLeft, wordStrRight);
+//                if (relatedness != null && relatedness.getWeight() > 0) {
+//                    WordMap newWordMap;
+//                    if (relatedness.getWeight() > 0.9) {
+//                        newWordMap = new WordMap(wordObjLeft, wordObjRight, SchemaRelation.EQUAL, "ConceptNet", relatedness.getWeight());
+//                    } else {
+//                        newWordMap = new WordMap(wordObjLeft, wordObjRight, SchemaRelation.AMBIGIOUS, "ConceptNet", relatedness.getWeight());
+//                    }
+//                    newWordMap.setComments(relatedness.toString());
+//                    wordsMap.add(newWordMap);
+//                    finalMatchTest = finalMatchTest & true;
+//                    totalWeight += relatedness.getWeight();
+//                    countRelation++;
+//                } else {
+//                    finalMatchTest = finalMatchTest & false;
+//                }
+//            }
+//        }
+//        if (countRelation == 0) {
+//            return;
+//        }
+//
+//        double averageWeight = totalWeight / countRelation;
+//
+//        AttributeMap sb;
+//        if (averageWeight > 0.9) {
+//            sb = new AttributeMap(attrLeft, attrRight, SchemaRelation.EQUAL, "ConceptNet", averageWeight);
+//        } else {
+//            sb = new AttributeMap(attrLeft, attrRight, SchemaRelation.AMBIGIOUS, "ConceptNet", averageWeight);
+//        }
+//        sb.setComments(wordsMap.toString());
+//        //System.out.println("Adding a new element after ConceptNet check");
+//        UHP_MAP.add(sb);
+//
+//    }
+
+    private void compareUmlsCui(Attribute attrLeft, Attribute attrRight) {
+        if (attrLeft == attrRight) {
+            return;
+        }
+        //Ignore attributes in the same table
+        if (isSameSchema(attrLeft, attrRight)) {
+            return;
+        }
+
+        List<Word> wordsLeft = attrLeft.getWords();
+        List<Word> wordsRight = attrRight.getWords();
+        List<WordMap> wordsMap = new ArrayList();
+        double totalWeight = 0;
+        int countRelation = 0;
+
+        for (int wordIte = 0; wordIte < wordsLeft.size(); wordIte++) {
+            Word wordObjLeft = wordsLeft.get(wordIte);
+            String wordStrLeft = wordObjLeft.getTitle().replaceAll(UhpMapUtils.REGEX_REPLACE_SPECIAL, "");
+            if (wordStrLeft.length() < 2) {
+                continue;
+            }
+
+            Collection leftConcepts = wordObjLeft.getUmlsConcept();
+            if (leftConcepts == null || leftConcepts.size() < 1) {
+                continue;
+            }
+            for (Word wordObjRight : wordsRight) {
+                String wordStrRight = wordObjRight.getTitle().replaceAll(UhpMapUtils.REGEX_REPLACE_SPECIAL, "");
+                if (wordStrRight.length() < 2) {
+                    continue;
+                }
+                
+                if(wordStrRight.equalsIgnoreCase(wordStrLeft)){
+                    WordMap m = new WordMap(wordObjRight, wordObjLeft, SchemaRelation.EQUAL, "CASE_Insensitive_Compare", 1.0);
+                    m.setComments("Found during UMLS CUI match");
+                    wordsMap.add(m);
+                    continue;
+                }
+                
+                Collection rightConcepts = wordObjLeft.getUmlsConcept();
+                if (rightConcepts == null || rightConcepts.size() < 1) {
+                    continue;
+                }
+                //retain only similar elements
+//                System.out.print("LeftConcepts 1"+wordObjLeft);
+//                System.out.println(leftConcepts);
+//                System.out.print("RightConcepts 1"+wordObjRight);
+//                System.out.println(rightConcepts);
+                
+                Collection commonConcepts = (Collection) rightConcepts.stream().filter(leftConcepts::contains).collect(Collectors.toList());
+                
+                //rightConcepts.retainAll(leftConcepts);
+//                System.out.print("Common Concepts 2");
+//                System.out.println(commonConcepts);
+//                
+                if (commonConcepts!=null && commonConcepts.size() > 0) {
+                    WordMap m = new WordMap(wordObjRight, wordObjLeft, SchemaRelation.SUBSUMPTION, "UMLS_CUI_Compare", 1.0);
+                    m.setComments(commonConcepts.toString());
+                    wordsMap.add(m);
+                    totalWeight++;
+                    countRelation++;
+                }
+
+            }
+
+        }
+        //Compare the CUI of the two words
+        if (totalWeight > 0) {
+            //Should be always 1.0
+            double averageWeight = totalWeight / countRelation;
+
+            AttributeMap sb;
+            //if (averageWeight > 0.9) {
+            sb = new AttributeMap(attrLeft, attrRight, SchemaRelation.EQUAL, "UMLS_CUI", averageWeight);
+            //} else {
+            //    sb = new AttributeMap(attrLeft, attrRight, SchemaRelation.AMBIGIOUS, "ConceptNet", averageWeight);
+            //}
+            try {
+//                if(wordsMap.size()<100){
+//                    sb.setComments(wordsMap.toString());
+//                }else{
+                StringBuilder b = new StringBuilder();
+                wordsMap.forEach(b::append);
+                sb.setComments(b.toString());
+//                }
+            } catch (OutOfMemoryError er) {
+                System.out.println("[UMLS_Compare]Out of memory error********************");
+                System.out.println("[UMLS_Compare] input 1:" + attrLeft);
+                System.out.println("[UMLS_Compare] words 1:" + wordsLeft.size());
+                System.out.println("[UMLS_Compare] input 2:" + attrRight);
+                System.out.println("[UMLS_Compare] words 2:" + wordsRight.size());
+                System.out.println("[UMLS_Compare] Relations:" + countRelation);
+                System.out.println("[UMLS_Compare] Out of memory error for size:" + wordsMap.size());
+
+            }
+            //System.out.println("Adding a new element after UMLS CUI check:" + sb);
+            UHP_MAP.add(sb);
+        }
+
     }
 
 }

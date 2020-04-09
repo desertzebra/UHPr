@@ -22,8 +22,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
-import org.khu.uclab.uhp.uhpmap.AttributeMap;
-import org.khu.uclab.uhp.uhpmap.SchemaRelation;
+import org.khu.uclab.uhp.uhpmap.model.AttributeMap;
+import org.khu.uclab.uhp.uhpmap.model.SchemaRelation;
 
 /**
  *
@@ -32,14 +32,15 @@ import org.khu.uclab.uhp.uhpmap.SchemaRelation;
 public class ConceptNetWrapper {
 
     private static final String CONCEPTNET_URI = "http://163.180.116.210/conceptnet";
-    private static final String NBR_TO_RETRIEVE = "100";
+    private static final String NBR_TO_RETRIEVE = "10";
 
     // Strings identifying properties in the JSON string.
     private static final String EDGES = "edges";
-    private static final int RETRIES = 3;
+    private static final int RETRIES = 5;
     private final String LANGUAGE = "/c/en/";
     private HashMap<String,HashMap<Relation, Edge>> singleTokenLookupTable = new HashMap();
     private final long RETRY_DELAY_MS = 100;
+    private HashMap<String, RelatednessNode> conceptNetRelatednessMap = new HashMap();
     
     public HashMap<Relation, Edge> query(String token) {
 
@@ -53,10 +54,10 @@ public class ConceptNetWrapper {
         String qStr = "";
         try {
             qStr = CONCEPTNET_URI+ LANGUAGE + token + "?limit=" + NBR_TO_RETRIEVE;//+ "&format=json";
-            System.out.println(qStr);
+            //System.out.println(qStr);
             // Get Json String from ConceptNet
             String json = getJsonString(qStr);
-            System.out.println(json);
+            //System.out.println(json);
             //System.out.println(json);
             JSONTokener jsonTokener = new JSONTokener(json);
             JSONObject jsonObject = new JSONObject(jsonTokener);
@@ -99,14 +100,23 @@ public class ConceptNetWrapper {
     public RelatednessNode queryRelatedness(String startToken, String endToken){
         startToken = startToken.trim().toLowerCase();
         endToken = endToken.trim().toLowerCase();
+        if(conceptNetRelatednessMap.containsKey(startToken+"-"+endToken)){
+            return conceptNetRelatednessMap.get(startToken+"-"+endToken);
+        }
+        if(conceptNetRelatednessMap.containsKey(endToken+"-"+startToken)){
+            return conceptNetRelatednessMap.get(endToken+"-"+startToken);
+        }
+                
         String qStr = "";
         RelatednessNode rn = null;
 
         try {
             qStr = CONCEPTNET_URI + "/relatedness?node1=" + LANGUAGE + startToken + "&node2=" + LANGUAGE + endToken + "&limit=" + NBR_TO_RETRIEVE;//+ "&format=json";
-
+            
+            //System.out.println("[ConceptNet][Query]:"+qStr);
             // Get relatedness Json String from ConceptNet
             JSONObject jsonObject = getResponse(qStr);
+            
             if (jsonObject != null){
                 rn = new RelatednessNode(jsonObject);
             }
@@ -114,6 +124,8 @@ public class ConceptNetWrapper {
             e.printStackTrace();
             System.out.println("JSONException: Can't retrieve message for(JSON Exception): " + qStr);
         }
+        conceptNetRelatednessMap.put(startToken+"-"+endToken, rn);
+        
         return rn;
     }
     

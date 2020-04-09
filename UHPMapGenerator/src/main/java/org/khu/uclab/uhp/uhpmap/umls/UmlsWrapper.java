@@ -3,74 +3,106 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package org.khu.uclab.uhp.uhpmap.snomedct;
+package org.khu.uclab.uhp.uhpmap.umls;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.restassured.RestAssured;
+import static io.restassured.RestAssured.given;
+import io.restassured.path.json.JsonPath;
+import io.restassured.response.Response;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
+import java.lang.module.Configuration;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.khu.uclab.uhp.uhpmap.JsonReader;
-
-import org.khu.uclab.uhp.uhpmap.snomedct.rf2.MatchResults;
+import org.khu.uclab.uhp.uhpmap.model.Concept;
 
 /**
  *
  * @author Fahad Ahmed Satti
  */
-public class SnomedCtWrapper {
+public class UmlsWrapper {
 
-    private static final String SNOMED_REST_URI = "https://browser.ihtsdotools.org/snowstorm/snomed-ct/browser/MAIN/2020-03-09/descriptions?&limit=100&active=true&conceptActive=true&lang=english";
-//    private static final String EDITION = "en-edition";
-//    private static final String RELEASE = "v20180131";
-//    private static final String NBR_TO_RETRIEVE = "100";
+    private static final String UMLS_REST_URI = "https://uts-ws.nlm.nih.gov";
+    private String apiKey = "";
     private final ObjectMapper jsonReader;
+    RestTicketClient ticketClient = new RestTicketClient(apiKey);
+    //get a ticket granting ticket for this session.
+    String tgt = ticketClient.getTgt();
+    String version = "current";
 
-    public SnomedCtWrapper() {
+    public UmlsWrapper() {
         this.jsonReader = new ObjectMapper();
     }
 
-    public String query(String token) throws IOException {
+    public List<Concept> query(String token) throws IOException {
 
         token = token.trim();
         try {
             token = URLEncoder.encode(token, "UTF-8");
         } catch (UnsupportedEncodingException ex) {
-            Logger.getLogger(SnomedCtWrapper.class.getName()).log(Level.SEVERE, null, ex);
+            System.out.println(ex.getMessage());
+            //Logger.getLogger(UmlsWrapper.class.getName()).log(Level.SEVERE, null, ex);
             return null;
         }
-        // Data on the response for a ConceptNet lookup.
-        //HashMap<Relation, Edge> edges = new HashMap();
-        StringBuilder qStr = new StringBuilder();
-            qStr.append(SNOMED_REST_URI);
-            qStr.append("&term=");
-            qStr.append(token);
+        int total = 0;
+        int pageNumber = 0;
+        JSONArray items;
+        List<Concept> expandedTerm = new ArrayList();
+        //StringBuilder expandedTerm = new StringBuilder("<<");
+        //System.out.println("Fetching results for term:" + token);
+        
+        resultsComplete: do {
+            pageNumber++;
+            StringBuilder qStr = new StringBuilder();
+            qStr.append(UMLS_REST_URI).append("/rest/search/")
+                    .append(version)
+                    .append("?ticket=").append(ticketClient.getST(tgt))
+                    .append("&pageNumber=").append(pageNumber)
+                    .append("&searchType=exact")
+                    .append("&string=").append(token);
+            //System.out.println("[UMLS][Query] String:" + qStr.toString());
             JSONObject snomedCtResult = JsonReader.readJsonFromUrl(qStr.toString());
-            JSONArray items = snomedCtResult.getJSONArray("items");
-            System.out.println("[SNOMED][Query] String:" + qStr.toString());
-            if (items.length() > 0) {
-                String conceptId = "<<" + items.getJSONObject(0).getJSONObject("concept").getString("conceptId") + ">>";
-                System.out.println("Found in SNOMED CT:" + token+": result is"+conceptId);
-                return conceptId;
-            }else{
-                System.out.println("Not Found in SNOMED CT:" + token);
-                System.out.println("result:" + snomedCtResult);
-            }
+            //System.out.println("[UMLS][Query] Result:" + snomedCtResult);
+            items = snomedCtResult.getJSONObject("result").getJSONArray("results");
+            
+            pageComplete: for (int itemIte = 0; itemIte < items.length() ; itemIte++) {
+                if(items.getJSONObject(itemIte).getString("ui").equalsIgnoreCase("NONE")){
+                    break resultsComplete;
+                }
+                String ui = items.getJSONObject(itemIte).getString("ui");
+                String name = items.getJSONObject(itemIte).getString("name");
+                String rootSource = items.getJSONObject(itemIte).getString("rootSource");
+                expandedTerm.add(new Concept(ui,name,rootSource));
+//                expandedTerm.append(ui);
+//                expandedTerm.append(",");
+//                expandedTerm.append(name);
+//                expandedTerm.append(",");
+//                expandedTerm.append(rootSource);
+//                expandedTerm.append("||");      // Separator between different terms
 
-        return null;
+            }
+        } while (items.length() > 0 && items.getJSONObject(items.length() - 1).getString("ui").equalsIgnoreCase("NONE"));
+                    // Close the special format
+        //String cui = "<<" + items.getJSONObject(itemIte).getJSONObject("concept").getString("conceptId") + ">>";
+        //System.out.println("Found in UMLS CT:" + token + ", result is:" + expandedTerm);
+        //return cui;
+
+        return expandedTerm;
     }
 
     private String getJsonString(String queryURI) throws IOException {

@@ -11,16 +11,16 @@ import com.opencsv.CSVReader;
 import com.opencsv.CSVReaderBuilder;
 import com.opencsv.CSVWriter;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.khu.uclab.uhp.uhpmap.model.Attribute;
+
 
 /**
  *
@@ -59,20 +59,20 @@ public class CsvHandler{
      * @return Array of tuples, each containing a map of key-value pairs
      * @throws IOException
      */
-    public ArrayList<Schema> readData() throws IOException {
+    public ArrayList<Attribute> readData() throws IOException {
 
         CSVReader csvData = new CSVReaderBuilder(new FileReader(sourceFile)).withCSVParser(parser).build();
         
         Iterator<String[]> iterator = csvData.iterator();
         String[] headers = iterator.next();
  
-        ArrayList<Schema> tuples = new ArrayList();
+        ArrayList<Attribute> tuples = new ArrayList();
         while (iterator.hasNext()) {
             String[] cellData = iterator.next();
-            Schema sc = new Schema();
-            sc.setTableName(cellData[TABLE_NAME_INDEX].trim());
-            sc.setAttributeName(cellData[ATTRIBUTE_NAME_INDEX].trim());
-            tuples.add(sc);
+            Attribute newAttribute = new Attribute();
+            newAttribute.setTableName(cellData[TABLE_NAME_INDEX].trim());
+            newAttribute.setFullString(cellData[ATTRIBUTE_NAME_INDEX].trim());
+            tuples.add(newAttribute);
         }
         return tuples;
     }
