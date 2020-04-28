@@ -31,7 +31,7 @@ import org.khu.uclab.uhp.uhpmap.model.SchemaRelation;
  */
 public class ConceptNetWrapper {
 
-    private static final String CONCEPTNET_URI = "http://163.180.116.210/conceptnet";
+    private static final String CONCEPTNET_URI = "http://[IP]/conceptnet";
     private static final String NBR_TO_RETRIEVE = "10";
 
     // Strings identifying properties in the JSON string.
