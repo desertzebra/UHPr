@@ -3,7 +3,7 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package org.khu.uclab.uhp.uhpmap.comparator;
+package org.khu.uclab.uhpr.uhprmap.comparator;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -15,13 +15,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.khu.uclab.uhp.uhpmap.conceptnet.ConceptNetWrapper;
-import org.khu.uclab.uhp.uhpmap.conceptnet.RelatednessNode;
-import org.khu.uclab.uhp.uhpmap.model.Attribute;
-import org.khu.uclab.uhp.uhpmap.model.AttributeMap;
-import org.khu.uclab.uhp.uhpmap.model.SchemaRelation;
-import org.khu.uclab.uhp.uhpmap.model.Word;
-import org.khu.uclab.uhp.uhpmap.model.WordMap;
+import org.khu.uclab.uhpr.uhprmap.conceptnet.ConceptNetWrapper;
+import org.khu.uclab.uhpr.uhprmap.conceptnet.RelatednessNode;
+import org.khu.uclab.uhpr.uhprmap.model.Attribute;
+import org.khu.uclab.uhpr.uhprmap.model.AttributeMap;
+import org.khu.uclab.uhpr.uhprmap.model.SchemaRelation;
+import org.khu.uclab.uhpr.uhprmap.model.Word;
+import org.khu.uclab.uhpr.uhprmap.model.WordMap;
 
 /**
  *

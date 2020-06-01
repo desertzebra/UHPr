@@ -28,7 +28,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.khu.uclab.uhp.uhpmap.comparator.ConceptNetThreadedComparator;
-import org.khu.uclab.uhp.uhpmap.comparator.UhpMapUtils;
+import org.khu.uclab.uhp.uhpmap.comparator.UhprMapUtils;
 import org.khu.uclab.uhp.uhpmap.model.AttributeMap;
 import org.khu.uclab.uhp.uhpmap.model.SchemaRelation;
 import org.khu.uclab.uhp.uhpmap.conceptnet.Edge;
@@ -56,7 +56,7 @@ public class Matcher {
     UmlsWrapper umlsHandler = new UmlsWrapper();
 
     // Use HashSet for fast lookup and avoiding duplicate objects
-    HashSet<AttributeMap> UHP_MAP = new HashSet();
+    HashSet<AttributeMap> UHPr_MAP = new HashSet();
     HashMap<String, HashMap<Relation, Edge>> conceptNetMap = new HashMap();
     HashMap<String, String> snomedCtMap = new HashMap();
     HashMap<String, List<Concept>> umlsMap = new HashMap();
@@ -103,12 +103,12 @@ public class Matcher {
                 //equality check
                 leftAttributeLoop:
                 for (int leftAttributeNameIterator = 0; leftAttributeNameIterator < attributeList.size(); leftAttributeNameIterator++) {
-                    //System.out.println("UHP_MAP size at Start:" + UHP_MAP.size());
+                    //System.out.println("UHPr_MAP size at Start:" + UHPr_MAP.size());
                     Attribute attrLeft = attributeList.get(leftAttributeNameIterator);
                     //System.out.println("Processing Attribute:" + attrLeft);
                     boolean checkFurther = true;
                     if (attrLeft.getWords().size() < 1) {
-                        attrLeft.setWords(attrLeft.getFullString().split(UhpMapUtils.REGEX_WITH_CASE));
+                        attrLeft.setWords(attrLeft.getFullString().split(UhprMapUtils.REGEX_WITH_CASE));
                     }
                     //System.out.println("Just Split:"+attrLeft.getWords().size());
                     rightAttributeLoop:
@@ -120,14 +120,14 @@ public class Matcher {
                         if (!checkFurther) {
                             continue;
                         }
-                        //System.out.println("UHP_MAP size after equality check:" + UHP_MAP.size());
+                        //System.out.println("UHPr_MAP size after equality check:" + UHPr_MAP.size());
 
                         // Check 2 - Suffix Tree based longest sequence match
                         compareLongestCommonSubsequenceInFullAttribute(attrLeft, attrRight);
 
                         //Generate the word lists
                         if (attrRight.getWords().size() < 1) {
-                            attrRight.setWords(attrRight.getFullString().split(UhpMapUtils.REGEX_WITH_CASE));
+                            attrRight.setWords(attrRight.getFullString().split(UhprMapUtils.REGEX_WITH_CASE));
                         }
                         //Replace concept from SNOMED CT
                         if (_isSnomedEnabled) {
@@ -158,21 +158,21 @@ public class Matcher {
                             //System.out.println("------------------ Concpet net mapping done ------------------");
                             if (map != null) {
                                 //System.out.println("Adding a new element after ConceptNet check:" + map);
-                                this.UHP_MAP.add(map);
+                                this.UHPr_MAP.add(map);
                             }
                             //compareRelatednessFromConceptNet(attrLeft, attrRight);
                         }
 
-                    }//Iterating Schema List for Right hand terms//Iterating Schema List for Right hand terms
+                    }//Iterating Schema List for Right hand terms//Iterating Schema List for Right hand terms//Iterating Schema List for Right hand terms//Iterating Schema List for Right hand terms//Iterating Schema List for Right hand terms//Iterating Schema List for Right hand terms//Iterating Schema List for Right hand terms//Iterating Schema List for Right hand terms
 
-                }//Iterating Schema List for Left hand terms//Iterating Schema List for Left hand terms
+                }//Iterating Schema List for Left hand terms//Iterating Schema List for Left hand terms//Iterating Schema List for Left hand terms//Iterating Schema List for Left hand terms//Iterating Schema List for Left hand terms//Iterating Schema List for Left hand terms//Iterating Schema List for Left hand terms//Iterating Schema List for Left hand terms
                 System.out.println("Finished Map generation process");
-                Iterator hashSetIterator = UHP_MAP.iterator();
+                Iterator hashSetIterator = UHPr_MAP.iterator();
                 while (hashSetIterator.hasNext()) {
                     System.out.println(hashSetIterator.next());
                 }
-                System.out.println("UHP_MAP Size:" + UHP_MAP.size());
-                //System.out.println(UHP_MAP);
+                System.out.println("UHP_MAP Size:" + UHPr_MAP.size());
+                //System.out.println(UHPr_MAP);
             } catch (IOException ex) {
                 Logger.getLogger(Matcher.class.getName()).log(Level.SEVERE, null, ex);
             }
@@ -184,7 +184,7 @@ public class Matcher {
             String realpath = writePath + "\\" + "schema_processed" + System.currentTimeMillis() + ".json";
             ObjectMapper UhpMapJson = new ObjectMapper();
             ObjectWriter UhpMapWriter = UhpMapJson.writer(new DefaultPrettyPrinter());
-            UhpMapWriter.writeValue(new File(realpath), UHP_MAP);
+            UhpMapWriter.writeValue(new File(realpath), UHPr_MAP);
             Long endTime = System.currentTimeMillis();
             
             System.out.println("Execute Time:");
@@ -201,7 +201,7 @@ public class Matcher {
 
     //Remove special characters from the string
     private String cleanWord(String word) {
-        return word.replaceAll(UhpMapUtils.REGEX_REPLACE_SPECIAL, "");
+        return word.replaceAll(UhprMapUtils.REGEX_REPLACE_SPECIAL, "");
     }
 
     //Remove special characters from the attribute
@@ -293,7 +293,7 @@ public class Matcher {
 
         if (cleanAttrLeftString.equalsIgnoreCase(cleanAttrRightString)) {
             //System.out.println(attrLeft + " == " + attrRight);
-            UHP_MAP.add(new AttributeMap(attrLeft, attrRight, SchemaRelation.EQUAL, "equalsIgnoreCase", 1.0));
+            UHPr_MAP.add(new AttributeMap(attrLeft, attrRight, SchemaRelation.EQUAL, "equalsIgnoreCase", 1.0));
             return false;
         }
         return true;
@@ -327,7 +327,7 @@ public class Matcher {
                         SchemaRelation.SUBSUMPTION, "SuffixTreeFullAttribute",
                         confidence);
                 sc.setComments(longestCommonSubstring);
-                UHP_MAP.add(sc);
+                UHPr_MAP.add(sc);
             }
 //            if (longestCommonSubstring.length() > threshold2) {
 //                double confidence = 1 - ((cleanAttrRightString.length() - longestCommonSubstring.length()) / cleanAttrRightString.length());
@@ -335,7 +335,7 @@ public class Matcher {
 //                        SchemaRelation.SUBSUMPTION, "SuffixTreeFullAttribute",
 //                        confidence);
 //                sc.setComments(longestCommonSubstring);
-//                UHP_MAP.add(sc);
+//                UHPr_MAP.add(sc);
 //
 //            }
         }
@@ -383,7 +383,7 @@ public class Matcher {
             sb.setComments(Arrays.toString(matchString));
 
             //System.out.println("Adding a new element after partial word check");
-            UHP_MAP.add(sb);
+            UHPr_MAP.add(sb);
         }
     }
 
@@ -408,7 +408,7 @@ public class Matcher {
 //
 //        //ArrayList<Edge> relatedness;
 //        for (Word wordObjLeft : wordsLeft) {
-//            String wordStrLeft = wordObjLeft.getTitle().replaceAll(UhpMapUtils.REGEX_REPLACE_SPECIAL, "");
+//            String wordStrLeft = wordObjLeft.getTitle().replaceAll(UhprMapUtils.REGEX_REPLACE_SPECIAL, "");
 //            if (wordStrLeft.length() < 2) {
 //                continue;
 //            }
@@ -416,7 +416,7 @@ public class Matcher {
 ////                continue;
 ////            }
 //            for (Word wordObjRight : wordsRight) {
-//                String wordStrRight = wordObjRight.getTitle().replaceAll(UhpMapUtils.REGEX_REPLACE_SPECIAL, "");
+//                String wordStrRight = wordObjRight.getTitle().replaceAll(UhprMapUtils.REGEX_REPLACE_SPECIAL, "");
 //                if (wordStrRight.length() < 2) {
 //                    continue;
 //                }
@@ -456,7 +456,7 @@ public class Matcher {
 //        }
 //        sb.setComments(wordsMap.toString());
 //        //System.out.println("Adding a new element after ConceptNet check");
-//        UHP_MAP.add(sb);
+//        UHPr_MAP.add(sb);
 //
 //    }
 
@@ -477,7 +477,7 @@ public class Matcher {
 
         for (int wordIte = 0; wordIte < wordsLeft.size(); wordIte++) {
             Word wordObjLeft = wordsLeft.get(wordIte);
-            String wordStrLeft = wordObjLeft.getTitle().replaceAll(UhpMapUtils.REGEX_REPLACE_SPECIAL, "");
+            String wordStrLeft = wordObjLeft.getTitle().replaceAll(UhprMapUtils.REGEX_REPLACE_SPECIAL, "");
             if (wordStrLeft.length() < 2) {
                 continue;
             }
@@ -487,7 +487,7 @@ public class Matcher {
                 continue;
             }
             for (Word wordObjRight : wordsRight) {
-                String wordStrRight = wordObjRight.getTitle().replaceAll(UhpMapUtils.REGEX_REPLACE_SPECIAL, "");
+                String wordStrRight = wordObjRight.getTitle().replaceAll(UhprMapUtils.REGEX_REPLACE_SPECIAL, "");
                 if (wordStrRight.length() < 2) {
                     continue;
                 }
@@ -556,7 +556,7 @@ public class Matcher {
 
             }
             //System.out.println("Adding a new element after UMLS CUI check:" + sb);
-            UHP_MAP.add(sb);
+            UHPr_MAP.add(sb);
         }
 
     }

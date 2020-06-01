@@ -3,7 +3,7 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package org.khu.uclab.uhp.uhpmap.umls;
+package org.khu.uclab.uhpr.uhprmap.umls;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.restassured.RestAssured;
@@ -28,8 +28,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.khu.uclab.uhp.uhpmap.JsonReader;
-import org.khu.uclab.uhp.uhpmap.model.Concept;
+import org.khu.uclab.uhpr.uhprmap.JsonReader;
+import org.khu.uclab.uhpr.uhprmap.model.Concept;
 
 /**
  *
